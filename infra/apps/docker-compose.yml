@@ -1,0 +1,122 @@
+version: '3.8'
+
+networks:
+  pedidos360-net:
+    driver: bridge
+    name: pedidos360-net
+
+services:
+  # 1. Backend for Frontend (BFF) - Orquestador y Resource Server
+  ms-pedidos-360-bff:
+    build:
+      context: ../../ms-pedidos-360-bff
+      dockerfile: Dockerfile
+    container_name: ms-pedidos-360-bff
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=https://login.microsoftonline.com/${TENANT_ID}/v2.0
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES_0=${CLIENT_ID_API}
+      - ORDERS_SERVICE_URL=http://ms-pedidos-360-orders:8081
+      - CATALOG_SERVICE_URL=http://ms-pedidos-360-catalog:8082
+      - REPORT_SERVICE_URL=http://ms-pedidos-360-report:8084
+      - AUDIT_SERVICE_URL=http://ms-pedidos-360-audit:8085
+    networks:
+      - pedidos360-net
+    restart: unless-stopped
+
+  # 2. Microservicio de Dominio: Pedidos
+  ms-pedidos-360-orders:
+    build:
+      context: ../../ms-pedidos-360-orders
+      dockerfile: Dockerfile
+    container_name: ms-pedidos-360-orders
+    expose:
+      - "8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@${OCI_DB_NAME}_high?TNS_ADMIN=/app/wallet
+      - SPRING_DATASOURCE_USERNAME=ORDERS_USER
+      - SPRING_DATASOURCE_PASSWORD=${OCI_DB_PASSWORD}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-ec2-mq}
+      - RABBITMQ_PORT=5672
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_HOST:-ec2-kafka}:9092
+    networks:
+      - pedidos360-net
+    restart: unless-stopped
+
+  # 3. Microservicio de Dominio: Catálogo y Productos
+  ms-pedidos-360-catalog:
+    build:
+      context: ../../ms-pedidos-360-catalog
+      dockerfile: Dockerfile
+    container_name: ms-pedidos-360-catalog
+    expose:
+      - "8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@${OCI_DB_NAME}_high?TNS_ADMIN=/app/wallet
+      - SPRING_DATASOURCE_USERNAME=CATALOG_USER
+      - SPRING_DATASOURCE_PASSWORD=${OCI_DB_PASSWORD}
+    networks:
+      - pedidos360-net
+    restart: unless-stopped
+
+  # 4. Microservicio Consumidor de Notificaciones (RabbitMQ)
+  ms-pedidos-360-notify:
+    build:
+      context: ../../ms-pedidos-360-notify
+      dockerfile: Dockerfile
+    container_name: ms-pedidos-360-notify
+    environment:
+      - SERVER_PORT=8083
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_RABBITMQ_HOST=${RABBITMQ_HOST:-ec2-mq}
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-user}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASS:-password}
+    networks:
+      - pedidos360-net
+    restart: unless-stopped
+
+  # 5. Microservicio de Analítica y Reportería (Kafka Consumer)
+  ms-pedidos-360-report:
+    build:
+      context: ../../ms-pedidos-360-report
+      dockerfile: Dockerfile
+    container_name: ms-pedidos-360-report
+    expose:
+      - "8084"
+    environment:
+      - SERVER_PORT=8084
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@${OCI_DB_NAME}_high?TNS_ADMIN=/app/wallet
+      - SPRING_DATASOURCE_USERNAME=REPORT_USER
+      - SPRING_DATASOURCE_PASSWORD=${OCI_DB_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_HOST:-ec2-kafka}:9092
+    networks:
+      - pedidos360-net
+    restart: unless-stopped
+
+  # 6. Microservicio de Auditoría y Timeline (Kafka Consumer)
+  ms-pedidos-360-audit:
+    build:
+      context: ../../ms-pedidos-360-audit
+      dockerfile: Dockerfile
+    container_name: ms-pedidos-360-audit
+    expose:
+      - "8085"
+    environment:
+      - SERVER_PORT=8085
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:oracle:thin:@${OCI_DB_NAME}_high?TNS_ADMIN=/app/wallet
+      - SPRING_DATASOURCE_USERNAME=AUDIT_USER
+      - SPRING_DATASOURCE_PASSWORD=${OCI_DB_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_HOST:-ec2-kafka}:9092
+    networks:
+      - pedidos360-net
+    restart: unless-stopped

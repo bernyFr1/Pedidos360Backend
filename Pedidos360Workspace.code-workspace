@@ -1,0 +1,49 @@
+{
+"folders": [
+{
+"name": "Infraestructura",
+"path": "infra"
+},
+{
+"name": "BFF - Orquestador",
+"path": "ms-pedidos-360-bff"
+},
+{
+"name": "MS Orders",
+"path": "ms-pedidos-360-orders"
+},
+{
+"name": "MS Catalog",
+"path": "ms-pedidos-360-catalog"
+},
+{
+"name": "MS Notify",
+"path": "ms-pedidos-360-notify"
+},
+{
+"name": "MS Report",
+"path": "ms-pedidos-360-report"
+},
+{
+"name": "MS Audit",
+"path": "ms-pedidos-360-audit"
+}
+],
+"settings": {
+"files.exclude": {
+"/.git": true,
+"/.DS_Store": true,
+"/target": false
+},
+"java.configuration.updateBuildConfiguration": "automatic",
+"editor.formatOnSave": true
+},
+"extensions": {
+"recommendations": [
+"vscjava.vscode-java-pack",
+"vmware.vscode-spring-boot-reconciler",
+"ms-azuretools.vscode-docker",
+"redhat.vscode-yaml"
+]
+}
+}
