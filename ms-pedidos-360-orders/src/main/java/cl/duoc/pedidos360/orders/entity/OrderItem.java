@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.ForeignKey;
 
 import java.math.BigDecimal;
 
@@ -28,6 +29,10 @@ public class OrderItem {
 
     @Column(name = "product_id", nullable = false)
     private Long productId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "product_id", nullable = false, insertable = false, updatable = false, foreignKey = @ForeignKey(name = "FK_ORDER_ITEMS_PRODUCT"))
+    private ProductReference product;
 
     @Column(nullable = false)
     private Integer quantity;

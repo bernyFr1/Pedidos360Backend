@@ -17,10 +17,12 @@ public class CatalogClient {
                 .build();
     }
 
-    public List<Object> getCatalog() {
+    public List<Object> getCatalog(String accessToken) {
         return this.restClient.get()
-                .uri("/products")
+                .uri("/api/catalog/products")
+                .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<Object>>() {});
+                .body(new ParameterizedTypeReference<List<Object>>() {
+                });
     }
 }
