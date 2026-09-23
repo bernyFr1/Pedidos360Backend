@@ -32,6 +32,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false, insertable = false, updatable = false, foreignKey = @ForeignKey(name = "FK_ORDER_ITEMS_PRODUCT"))
+    @JsonIgnore
     private ProductReference product;
 
     @Column(nullable = false)

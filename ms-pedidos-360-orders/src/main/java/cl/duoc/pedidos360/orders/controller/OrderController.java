@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ public class OrderController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_CLIENTE', 'ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
     public ResponseEntity<List<Order>> listarPedidos(
             @RequestParam(required = false) String clientId) {
         if (clientId != null && !clientId.isBlank()) {
@@ -41,12 +43,14 @@ public class OrderController {
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Order> crearPedido(@RequestBody Order pedido) {
         Order nuevo = orderService.crearPedido(pedido);
         return ResponseEntity.status(HttpStatus.CREATED).body(nuevo);
     }
 
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
     public ResponseEntity<Order> cambiarEstado(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
