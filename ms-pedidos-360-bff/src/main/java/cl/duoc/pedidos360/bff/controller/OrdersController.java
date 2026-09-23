@@ -46,7 +46,10 @@ public class OrdersController {
     // Solo el Operador (o Administrador) puede cambiar el estado de un pedido
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
-    public ResponseEntity<Object> cambiarEstado(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<Object> cambiarEstado(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(ordersClient.cambiarEstado(id, body.get("status"), jwt.getTokenValue()));
     }
 }
