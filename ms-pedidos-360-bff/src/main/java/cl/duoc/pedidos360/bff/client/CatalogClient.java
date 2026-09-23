@@ -25,4 +25,38 @@ public class CatalogClient {
                 .body(new ParameterizedTypeReference<List<Object>>() {
                 });
     }
+
+    public Object getProduct(Long id, String accessToken) {
+        return this.restClient.get()
+                .uri("/api/catalog/products/{id}", id)
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .retrieve()
+                .body(Object.class);
+    }
+
+    public Object createProduct(Object product, String accessToken) {
+        return this.restClient.post()
+                .uri("/api/catalog/products")
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .body(product)
+                .retrieve()
+                .body(Object.class);
+    }
+
+    public Object updateProduct(Long id, Object product, String accessToken) {
+        return this.restClient.put()
+                .uri("/api/catalog/products/{id}", id)
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .body(product)
+                .retrieve()
+                .body(Object.class);
+    }
+
+    public void deleteProduct(Long id, String accessToken) {
+        this.restClient.delete()
+                .uri("/api/catalog/products/{id}", id)
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .retrieve()
+                .toBodilessEntity();
+    }
 }

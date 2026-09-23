@@ -25,4 +25,39 @@ public class CatalogController {
         List<Object> products = this.catalogClient.getCatalog(jwt.getTokenValue());
         return ResponseEntity.ok(products);
     }
+
+    @GetMapping("/products/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
+    public ResponseEntity<Object> getProduct(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(this.catalogClient.getProduct(id, jwt.getTokenValue()));
+    }
+
+    @PostMapping("/products")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
+    public ResponseEntity<Object> createProduct(
+            @RequestBody Object product,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.status(201)
+                .body(this.catalogClient.createProduct(product, jwt.getTokenValue()));
+    }
+
+    @PutMapping("/products/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
+    public ResponseEntity<Object> updateProduct(
+            @PathVariable Long id,
+            @RequestBody Object product,
+            @AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(this.catalogClient.updateProduct(id, product, jwt.getTokenValue()));
+    }
+
+    @DeleteMapping("/products/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
+    public ResponseEntity<Void> deleteProduct(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        this.catalogClient.deleteProduct(id, jwt.getTokenValue());
+        return ResponseEntity.noContent().build();
+    }
 }
