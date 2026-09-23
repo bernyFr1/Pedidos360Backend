@@ -28,15 +28,30 @@ public class SecurityConfig {
 		.authorizeHttpRequests(auth -> auth
 			.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 			.requestMatchers("/api/publico").permitAll()
-			.requestMatchers(HttpMethod.GET, "/api/pedidos/**")
-			.hasAuthority("SCOPE_Pedidos.Read")
-			.anyRequest()
-			.authenticated())
-		.oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()));
+			.requestMatchers("/api/catalog/**").authenticated()
+			.requestMatchers("/api/orders/**").authenticated()
+			.anyRequest().authenticated())
+		.oauth2ResourceServer(oauth -> oauth.jwt(jwt -&gt; jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())) );
 
 	return http.build();
     }
 
+	private JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(new Converter<Jwt, Collection<GrantedAuthority>>() {
+        @Override
+        public Collection<GrantedAuthority> convert(Jwt jwt) {
+            List<String> roles = jwt.getClaimAsStringList("roles");
+            if (roles == null || roles.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .collect(Collectors.toList());
+        }
+    });
+    return converter;
+}
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 	CorsConfiguration config = new CorsConfiguration();
