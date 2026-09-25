@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriBuilder;
 
 @Component
 public class OrdersClient {
@@ -19,9 +18,9 @@ public class OrdersClient {
                 .build();
     }
 
-    public List<Object> listarPedidos(String clientId, String accessToken) {
+    public List<Object> listarPedidos(String accessToken) {
         return this.restClient.get()
-                .uri(uriBuilder -> buildOrdersUri(uriBuilder, clientId))
+                .uri("/api/orders")
                 .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .body(new ParameterizedTypeReference<List<Object>>() {
@@ -46,11 +45,4 @@ public class OrdersClient {
                 .body(Object.class);
     }
 
-    private java.net.URI buildOrdersUri(UriBuilder uriBuilder, String clientId) {
-        UriBuilder builder = uriBuilder.path("/api/orders");
-        if (clientId != null && !clientId.isBlank()) {
-            builder.queryParam("clientId", clientId);
-        }
-        return builder.build();
-    }
 }

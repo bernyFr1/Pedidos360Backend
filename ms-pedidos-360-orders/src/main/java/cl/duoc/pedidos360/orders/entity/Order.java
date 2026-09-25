@@ -11,6 +11,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class Order {
     private Long id;
 
     @Column(name = "client_id", nullable = false, length = 100)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private String clientId;
 
     @Column(name = "client_name", length = 150)

@@ -28,6 +28,14 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public List<Order> obtenerPedidos(String cuenta, boolean puedeVerTodos) {
+        if (puedeVerTodos) {
+            return obtenerTodos();
+        }
+        return obtenerPorCliente(cuenta);
+    }
+
+    @Transactional(readOnly = true)
     public List<Order> obtenerPorCliente(String clientId) {
         return orderRepository.findByClientId(clientId);
     }
@@ -38,8 +46,18 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado con ID: " + id));
     }
 
+    @Transactional(readOnly = true)
+    public Order obtenerPorId(Long id, String cuenta, boolean puedeVerTodos) {
+        Order pedido = obtenerPorId(id);
+        if (!puedeVerTodos && !cuenta.equals(pedido.getClientId())) {
+            throw new RuntimeException("Pedido no encontrado con ID: " + id);
+        }
+        return pedido;
+    }
+
     @Transactional
-    public Order crearPedido(Order nuevoPedido) {
+    public Order crearPedido(Order nuevoPedido, String cuenta) {
+        nuevoPedido.setClientId(cuenta);
         if (nuevoPedido.getItems() == null || nuevoPedido.getItems().isEmpty()) {
             throw new IllegalArgumentException("El pedido debe incluir al menos un ítem");
         }

@@ -20,25 +20,13 @@ public class OrdersController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_CLIENTE', 'ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
     public ResponseEntity<List<Object>> listarPedidos(@AuthenticationPrincipal Jwt jwt) {
-        List<String> roles = jwt.getClaimAsStringList("roles");
-        boolean esClientePuro = roles != null && roles.contains("ROLE_CLIENTE")
-                && !roles.contains("ROLE_ADMINISTRADOR") && !roles.contains("ROLE_OPERADOR");
-
-        // Regla de negocio: Si es Cliente, solo ve sus propios pedidos (se filtra por
-        // sub / preferred_username)
-        if (esClientePuro) {
-            String clientId = jwt.getClaimAsString("preferred_username");
-            if (clientId == null)
-                clientId = jwt.getSubject();
-            return ResponseEntity.ok(ordersClient.listarPedidos(clientId, jwt.getTokenValue()));
-        }
-
-        // Operador y Admin ven todos los pedidos
-        return ResponseEntity.ok(ordersClient.listarPedidos(null, jwt.getTokenValue()));
+        return ResponseEntity.ok(ordersClient.listarPedidos(jwt.getTokenValue()));
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_CLIENTE', 'ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
     public ResponseEntity<Object> crearPedido(@RequestBody Object pedido, @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.status(201).body(ordersClient.crearPedido(pedido, jwt.getTokenValue()));
     }
