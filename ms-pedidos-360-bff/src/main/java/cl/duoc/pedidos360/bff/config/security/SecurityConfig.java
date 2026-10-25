@@ -39,8 +39,13 @@ public class SecurityConfig {
 						.requestMatchers("/api/catalog/**").authenticated()
 						.requestMatchers("/api/orders/**").authenticated()
 						.anyRequest().authenticated())
-				.oauth2ResourceServer(
-						oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
+				.exceptionHandling(exceptions -> exceptions
+						.authenticationEntryPoint((request, response, exception) -> response.sendError(401))
+						.accessDeniedHandler((request, response, exception) -> response.sendError(403)))
+				.oauth2ResourceServer(oauth -> oauth
+						.authenticationEntryPoint((request, response, exception) -> response.sendError(401))
+						.accessDeniedHandler((request, response, exception) -> response.sendError(403))
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
 		return http.build();
 	}
@@ -70,7 +75,7 @@ public class SecurityConfig {
 				"http://localhost:4200",
 				"https://*.amazonaws.com"));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-		config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		config.setAllowedHeaders(List.of("Authorization", "Content-Type", "ngrok-skip-browser-warning"));
 
 		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", config);
