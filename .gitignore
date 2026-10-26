@@ -1,1 +1,6 @@
 Wallet_pedidos360db/
+# Entorno local
+.env
+.env.*
+!.env.example
+.vscode/
