@@ -1333,6 +1333,81 @@ curl -i -X DELETE http://localhost:8080/api/admin/rabbit/exchanges/ex.demo \
 
 Respuestas esperadas: `201` al crear, `200` al consultar, `204` al eliminar, `400` ante validación inválida, `404` si el recurso no existe y `503` si RabbitMQ no está disponible.
 
+### 14.7 EP4 local con Floci (alternativa a AWS Academy)
+
+Como AWS Academy dejó de estar disponible, EP4 se puede validar localmente con **Floci**, un emulador AWS que corre en `localhost:4566`. No reemplaza una nube real si el docente exige AWS real, pero permite reconstruir y demostrar API Gateway, S3, CloudFront, IAM, EC2 y el flujo de la aplicación sin credenciales cloud.
+
+Archivos:
+
+```text
+infra/floci/
+├── docker-compose.yml       Floci + proxy Nginx
+├── default.conf.template    proxy con Host de API Gateway
+└── setup.sh                 crea API Gateway, integración, JWT authorizer y stage
+```
+
+Requisitos:
+
+- Tener arriba `infra/apps/docker-compose.yml` (BFF en `localhost:8080`).
+- Tener `infra/apps/.env` con `TENANT_ID` y `CLIENT_ID_API`.
+
+Ejecución:
+
+```bash
+./infra/floci/setup.sh
+```
+
+Salida esperada:
+
+```text
+FLOCI_API_BASE_URL=http://localhost:8088/Desarrollo
+```
+
+El script crea:
+
+- API Gateway v2 `pedidos360-api`.
+- Integración `HTTP_PROXY` hacia `http://host.docker.internal:8080/{proxy}`.
+- JWT authorizer `entra-jwt` con issuer/audience de Entra ID.
+- Ruta `ANY /{proxy+}`.
+- Stage `Desarrollo`.
+- Proxy Nginx en `http://localhost:8088` para que el navegador envíe el Host de API Gateway.
+
+Frontend:
+
+```bash
+cd ../../proyecto_angular_pedidos360/pedidos360-app-angular-msal
+# apiBaseUrl = http://localhost:8088/Desarrollo
+npm ci
+npm start
+```
+
+Validación:
+
+```bash
+# público
+curl -s http://localhost:8088/Desarrollo/api/publico
+
+# admin sin token: 401
+curl -s -o /dev/null -w '%{http_code}\n' \
+  http://localhost:8088/Desarrollo/api/admin/rabbit/queues/q.test
+
+# token inválido: 401
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'Authorization: Bearer invalid' \
+  http://localhost:8088/Desarrollo/api/admin/rabbit/queues/q.test
+
+# preflight CORS: 204
+curl -s -o /dev/null -w '%{http_code}\n' -X OPTIONS \
+  http://localhost:8088/Desarrollo/api/orders \
+  -H 'Origin: http://localhost:4200' \
+  -H 'Access-Control-Request-Method: GET' \
+  -H 'Access-Control-Request-Headers: authorization'
+```
+
+**Limitación de Floci:** su JWT authorizer rechaza tokens inválidos (`401`), pero no exige el header `Authorization` ausente. La protección real de no-token y de roles queda en el BFF y en los microservicios; el API Gateway sigue siendo la fachada y el punto de validación de tokens cuando el header está presente.
+
+**Importante:** esto es una emulación local. No reemplaza una demostración en AWS real si la rúbrica lo exige. Sirve para reconstruir la arquitectura y dejar la configuración preparada.
+
 ---
 
 ## 15. Anti-patrones y cómo los evitamos
@@ -1953,6 +2028,7 @@ DLQ inspección ... x-retry-count=3 x-death=[{exchange=cmd.topic, routing-keys=[
 | Archivo | Cambio | Para qué |
 |---|---|---|
 | `infra/apps/docker-compose.yml` | Nuevo | Compose de aplicaciones; `orders` y `notify` en la red de RabbitMQ |
+| `infra/floci/docker-compose.yml`, `default.conf.template`, `setup.sh` | Nuevo | API Gateway/S3/EC2 local con Floci y proxy para el frontend |
 | `infra/apps/.env.example` | Nuevo | Plantilla de variables (sin secretos) |
 | `infra/apps/.env` | Creado local, ignorado | Credenciales reales de Oracle/RabbitMQ |
 | `Dockerfile` | Nuevo | Build genérico por `ARG MODULE` |
@@ -1995,3 +2071,4 @@ DLQ inspección ... x-retry-count=3 x-death=[{exchange=cmd.topic, routing-keys=[
 - **DLQ:** `DlqInspector` + `POST /api/lab/dlq/inspeccionar` leen, loguean `x-death`/`x-retry-count` y reencolan en la misma DLQ sin vaciarla. En fallos topic, `x-death` conserva `exchange=cmd.topic` y la routing key variante.
 - **Admin:** `ms-pedidos-360-admin-mq` en `:8086` expone CRUD de colas, exchanges y bindings con `RabbitAdminService`, validación, 400/404/503 y `ROLE_ADMINISTRADOR`. El BFF lo expone en `/api/admin/rabbit/**` y reenvía el JWT.
 - **Limitaciones:** at-least-once sin idempotencia, reintento inmediato sin backoff, sin outbox, DLQ sin reproceso automático (solo inspección manual), `/api/lab/**` abierto para la demo.
+- **EP4 local con Floci:** API Gateway v2, integración HTTP al BFF, JWT authorizer y proxy en `:8088`; limitación de Floci con header `Authorization` ausente, compensada por el BFF.

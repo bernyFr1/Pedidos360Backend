@@ -1,0 +1,26 @@
+name: pedidos360-floci
+
+services:
+  floci:
+    image: floci/floci:latest
+    container_name: floci
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  floci-gw:
+    image: nginx:alpine
+    container_name: floci-gw
+    ports:
+      - "8088:80"
+    environment:
+      FLOCI_API_HOST: ${FLOCI_API_HOST:-localhost}
+    volumes:
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro,z
+    depends_on:
+      - floci
+    restart: unless-stopped
