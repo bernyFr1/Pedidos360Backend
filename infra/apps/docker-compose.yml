@@ -1,0 +1,199 @@
+# Compose de aplicaciones de Pedidos360.
+#
+# Requisitos antes de levantar:
+#   1. El clúster RabbitMQ debe estar arriba:
+#        cd infra/rabbitmq && docker compose up -d
+#   2. Debe existir la red externa "pedidos360-rabbitmq-net".
+#   3. Debes tener un .env en esta carpeta (copia .env.example y completa los valores).
+#
+# Las credenciales de RabbitMQ deben coincidir con infra/rabbitmq/.env.
+# No commitees el archivo .env.
+
+name: pedidos360-apps
+
+networks:
+  pedidos360-net:
+    name: pedidos360-net
+    driver: bridge
+  pedidos360-rabbitmq-net:
+    name: pedidos360-rabbitmq-net
+    external: true
+
+services:
+  # 1. Backend for Frontend (BFF) - Orquestador y Resource Server
+  ms-pedidos-360-bff:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-bff
+    container_name: ms-pedidos-360-bff
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://login.microsoftonline.com/${TENANT_ID}/v2.0
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES_0: ${CLIENT_ID_API}
+      SERVICES_ORDERS_URL: http://ms-pedidos-360-orders:8082
+      SERVICES_CATALOG_URL: http://ms-pedidos-360-catalog:8081
+      SERVICES_ADMIN_MQ_URL: http://ms-pedidos-360-admin-mq:8086
+    networks:
+      - pedidos360-net
+    depends_on:
+      - ms-pedidos-360-orders
+      - ms-pedidos-360-catalog
+      - ms-pedidos-360-admin-mq
+    restart: unless-stopped
+
+  # 2. Microservicio de Dominio: Pedidos (productor RabbitMQ)
+  ms-pedidos-360-orders:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-orders
+    container_name: ms-pedidos-360-orders
+    expose:
+      - "8082"
+    environment:
+      SERVER_PORT: 8082
+      SPRING_PROFILES_ACTIVE: prod
+
+      # Oracle Autonomous Database
+      ORACLE_JDBC_URL: ${ORACLE_JDBC_URL:-jdbc:oracle:thin:@gcn5ldacwb15oubf_tp}
+      ORACLE_TNS_ADMIN: /opt/pedidos360/wallet
+      ORACLE_WALLET_LOCATION: (SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY=/opt/pedidos360/wallet)))
+      ORACLE_USERNAME: ${ORACLE_USERNAME}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+
+      # JWT (Microsoft Entra ID)
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://login.microsoftonline.com/${TENANT_ID}/v2.0
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES_0: ${CLIENT_ID_API}
+
+      # RabbitMQ
+      SPRING_RABBITMQ_ADDRESSES: rabbitmq-1:5672,rabbitmq-2:5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      SPRING_RABBITMQ_PUBLISHER_CONFIRM_TYPE: correlated
+      SPRING_RABBITMQ_PUBLISHER_RETURNS: "true"
+    volumes:
+      - ${ORACLE_WALLET_PATH:-../../../../aws/Wallet_pedidos360db}:/opt/pedidos360/wallet:ro,z
+    networks:
+      - pedidos360-net
+      - pedidos360-rabbitmq-net
+    restart: unless-stopped
+
+  # 3. Microservicio de Dominio: Catálogo y Productos
+  ms-pedidos-360-catalog:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-catalog
+    container_name: ms-pedidos-360-catalog
+    expose:
+      - "8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_PROFILES_ACTIVE: prod
+
+      # Oracle Autonomous Database
+      ORACLE_JDBC_URL: ${ORACLE_JDBC_URL:-jdbc:oracle:thin:@gcn5ldacwb15oubf_tp}
+      ORACLE_TNS_ADMIN: /opt/pedidos360/wallet
+      ORACLE_WALLET_LOCATION: (SOURCE=(METHOD=FILE)(METHOD_DATA=(DIRECTORY=/opt/pedidos360/wallet)))
+      ORACLE_USERNAME: ${ORACLE_USERNAME}
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+
+      # JWT (Microsoft Entra ID)
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://login.microsoftonline.com/${TENANT_ID}/v2.0
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES_0: ${CLIENT_ID_API}
+    volumes:
+      - ${ORACLE_WALLET_PATH:-../../../../aws/Wallet_pedidos360db}:/opt/pedidos360/wallet:ro,z
+    networks:
+      - pedidos360-net
+    restart: unless-stopped
+
+  # 4. Microservicio Consumidor de Notificaciones, Cocina y Documentos (RabbitMQ)
+  ms-pedidos-360-notify:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-notify
+    container_name: ms-pedidos-360-notify
+    expose:
+      - "8083"
+    environment:
+      SERVER_PORT: 8083
+      SPRING_PROFILES_ACTIVE: prod
+
+      # RabbitMQ
+      SPRING_RABBITMQ_ADDRESSES: rabbitmq-1:5672,rabbitmq-2:5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      SPRING_RABBITMQ_LISTENER_SIMPLE_ACKNOWLEDGE_MODE: manual
+      SPRING_RABBITMQ_LISTENER_SIMPLE_PREFETCH: "1"
+      SPRING_RABBITMQ_LISTENER_SIMPLE_DEFAULT_REQUEUE_REJECTED: "false"
+    networks:
+      - pedidos360-net
+      - pedidos360-rabbitmq-net
+    restart: unless-stopped
+
+  # 5. Microservicio Administrador de RabbitMQ
+  ms-pedidos-360-admin-mq:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-admin-mq
+    container_name: ms-pedidos-360-admin-mq
+    expose:
+      - "8086"
+    environment:
+      SERVER_PORT: 8086
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://login.microsoftonline.com/${TENANT_ID}/v2.0
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES_0: ${CLIENT_ID_API}
+      SPRING_RABBITMQ_ADDRESSES: rabbitmq-1:5672,rabbitmq-2:5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - pedidos360-net
+      - pedidos360-rabbitmq-net
+    restart: unless-stopped
+
+  # 6. Microservicios de Kafka / Observabilidad (Control 3 / EFT)
+  #    Fuera del alcance actual de EP3/EP4. Se habilitan en la siguiente etapa.
+  #
+  # ms-pedidos-360-report:
+  #   build:
+  #     context: ../..
+  #     dockerfile: Dockerfile
+  #     args:
+  #       MODULE: ms-pedidos-360-report
+  #   container_name: ms-pedidos-360-report
+  #   expose:
+  #     - "8084"
+  #   environment:
+  #     SERVER_PORT: 8084
+  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_HOST:-kafka1}:9092
+  #   networks:
+  #     - pedidos360-net
+  #   restart: unless-stopped
+  #
+  # ms-pedidos-360-audit:
+  #   build:
+  #     context: ../..
+  #     dockerfile: Dockerfile
+  #     args:
+  #       MODULE: ms-pedidos-360-audit
+  #   container_name: ms-pedidos-360-audit
+  #   expose:
+  #     - "8085"
+  #   environment:
+  #     SERVER_PORT: 8085
+  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_HOST:-kafka1}:9092
+  #   networks:
+  #     - pedidos360-net
+  #   restart: unless-stopped

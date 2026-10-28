@@ -1,25 +1,31 @@
 package cl.duoc.pedidos360.orders.service;
 
+import cl.duoc.pedidos360.orders.domain.EstadoPedido;
+import cl.duoc.pedidos360.orders.domain.PedidoPolicy;
 import cl.duoc.pedidos360.orders.entity.Order;
 import cl.duoc.pedidos360.orders.entity.OrderItem;
+import cl.duoc.pedidos360.orders.messaging.PedidoPersistidoEvent;
 import cl.duoc.pedidos360.orders.repository.OrderRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 
 @Service
 public class OrderService {
 
-    private static final Set<String> ESTADOS_VALIDOS = Set.of(
-            "CREADO", "ACEPTADO", "EN_PREPARACION", "DESPACHADO", "ENTREGADO", "CANCELADO");
-
     private final OrderRepository orderRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final PedidoPolicy pedidoPolicy;
 
-    public OrderService(OrderRepository orderRepository) {
+    public OrderService(OrderRepository orderRepository,
+                        ApplicationEventPublisher eventPublisher,
+                        PedidoPolicy pedidoPolicy) {
         this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
+        this.pedidoPolicy = pedidoPolicy;
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +68,7 @@ public class OrderService {
             throw new IllegalArgumentException("El pedido debe incluir al menos un ítem");
         }
 
-        nuevoPedido.setStatus("CREADO");
+        nuevoPedido.setStatus(EstadoPedido.CREADO.name());
         BigDecimal totalCalculado = BigDecimal.ZERO;
 
         for (OrderItem item : nuevoPedido.getItems()) {
@@ -80,32 +86,27 @@ public class OrderService {
         }
 
         nuevoPedido.setTotalAmount(totalCalculado);
-        return orderRepository.save(nuevoPedido);
+        Order guardado = orderRepository.save(nuevoPedido);
+        eventPublisher.publishEvent(new PedidoPersistidoEvent(
+                guardado.getId(), guardado.getClientId(), guardado.getStatus()));
+        return guardado;
     }
 
     @Transactional
     public Order cambiarEstado(Long id, String nuevoEstado) {
-        if (nuevoEstado == null || nuevoEstado.isBlank()) {
-            throw new IllegalArgumentException("El estado es obligatorio");
-        }
-
-        String estadoUpper = nuevoEstado.toUpperCase();
-        if (!ESTADOS_VALIDOS.contains(estadoUpper)) {
-            throw new IllegalArgumentException("Estado no válido: " + nuevoEstado);
-        }
-
+        EstadoPedido nuevo = pedidoPolicy.parse(nuevoEstado);
         Order pedido = obtenerPorId(id);
-        String estadoActual = pedido.getStatus();
+        EstadoPedido actual = pedidoPolicy.parse(pedido.getStatus());
 
-        if ("DESPACHADO".equals(estadoUpper) && "CREADO".equals(estadoActual)) {
-            throw new IllegalStateException("Un pedido CREADO debe ser ACEPTADO antes de ser DESPACHADO");
+        if (nuevo == actual) {
+            return pedido;
         }
 
-        if ("ENTREGADO".equals(estadoActual) || "CANCELADO".equals(estadoActual)) {
-            throw new IllegalStateException("No se puede cambiar el estado de un pedido " + estadoActual);
-        }
-
-        pedido.setStatus(estadoUpper);
-        return orderRepository.save(pedido);
+        pedidoPolicy.validarTransicion(actual, nuevo);
+        pedido.setStatus(nuevo.name());
+        Order guardado = orderRepository.save(pedido);
+        eventPublisher.publishEvent(new PedidoPersistidoEvent(
+                guardado.getId(), guardado.getClientId(), guardado.getStatus()));
+        return guardado;
     }
 }

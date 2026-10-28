@@ -29,6 +29,11 @@ public class RabbitTopologyConfig {
     }
 
     @Bean
+    public TopicExchange cmdTopicExchange(RabbitProperties props) {
+        return new TopicExchange(props.exchange().topic(), true, false);
+    }
+
+    @Bean
     public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
         return new RabbitAdmin(connectionFactory);
     }
@@ -36,11 +41,6 @@ public class RabbitTopologyConfig {
     @Bean
     public ApplicationRunner rabbitTopologyInitializer(RabbitAdmin rabbitAdmin) {
         return args -> rabbitAdmin.initialize();
-    }
-
-    @Bean
-    public TopicExchange cmdTopicExchange(RabbitProperties props) {
-        return new TopicExchange(props.exchange().topic(), true, false);
     }
 
     @Bean
@@ -74,7 +74,7 @@ public class RabbitTopologyConfig {
                     .to(direct)
                     .with(props.routingKey(dominio)));
 
-            // Variantes: cmd.topic / email.*
+            // Variantes: cmd.topic / email.#
             declarables.add(BindingBuilder.bind(mainQueue)
                     .to(topic)
                     .with(props.topicPattern(dominio)));

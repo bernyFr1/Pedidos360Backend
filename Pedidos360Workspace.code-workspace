@@ -21,6 +21,10 @@
 "path": "ms-pedidos-360-notify"
 },
 {
+"name": "MS Admin MQ",
+"path": "ms-pedidos-360-admin-mq"
+},
+{
 "name": "MS Report",
 "path": "ms-pedidos-360-report"
 },
