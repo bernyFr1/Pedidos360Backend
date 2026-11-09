@@ -2,6 +2,7 @@ package cl.duoc.pedidos360.orders.controller;
 
 import cl.duoc.pedidos360.orders.config.SecurityConfig;
 import cl.duoc.pedidos360.orders.service.OrderService;
+import org.springframework.http.MediaType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -15,10 +16,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(OrderController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, OrderExceptionHandler.class})
 class OrderControllerSecurityTest {
 
     @Autowired
@@ -56,5 +58,17 @@ class OrderControllerSecurityTest {
         mockMvc.perform(get("/api/orders")
                 .with(jwt().authorities(() -> "ROLE_ADMINISTRADOR")))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void transicionInvalidaDevuelve409() throws Exception {
+        when(orderService.cambiarEstado(1L, "ACEPTADO"))
+                .thenThrow(new IllegalStateException("Transición no permitida: DESPACHADO -> ACEPTADO"));
+
+        mockMvc.perform(put("/api/orders/1/status")
+                        .with(jwt().authorities(() -> "ROLE_ADMINISTRADOR"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ACEPTADO\"}"))
+                .andExpect(status().isConflict());
     }
 }
