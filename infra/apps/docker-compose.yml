@@ -158,6 +158,10 @@ services:
       SPRING_RABBITMQ_ADDRESSES: rabbitmq-1:5672,rabbitmq-2:5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      # API HTTP de gestión para el módulo de monitoreo
+      RABBITMQ_MANAGEMENT_URL: http://rabbitmq-1:15672/api
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     networks:
       - pedidos360-net
       - pedidos360-rabbitmq-net

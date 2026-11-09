@@ -1,6 +1,7 @@
 package cl.duoc.pedidos360.adminmq.controller;
 
 import cl.duoc.pedidos360.adminmq.exception.ResourceNotFoundException;
+import cl.duoc.pedidos360.adminmq.monitoring.exception.RabbitMqManagementException;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.ShutdownSignalException;
 import org.slf4j.Logger;
@@ -61,6 +62,13 @@ public class AdminExceptionHandler {
             cause = cause.getCause();
         }
         return false;
+    }
+
+    @ExceptionHandler(RabbitMqManagementException.class)
+    ResponseEntity<Map<String, String>> managementError(RabbitMqManagementException exception) {
+        log.error("Error consultando la API de RabbitMQ Management", exception);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", exception.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

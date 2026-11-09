@@ -39,7 +39,8 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health").permitAll()
 						.requestMatchers("/api/catalog/**").authenticated()
 						.requestMatchers("/api/orders/**").authenticated()
-						.requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMINISTRADOR")
+						.requestMatchers("/api/admin/**")
+						.hasAnyAuthority("ROLE_ADMINISTRADOR", "ROLE_ADMIN")
 						.anyRequest().authenticated())
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint((request, response, exception) -> response.sendError(401))
