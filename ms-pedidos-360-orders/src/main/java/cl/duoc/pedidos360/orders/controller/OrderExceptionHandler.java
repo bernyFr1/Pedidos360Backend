@@ -1,5 +1,6 @@
 package cl.duoc.pedidos360.orders.controller;
 
+import cl.duoc.pedidos360.orders.client.CatalogUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -38,6 +39,13 @@ public class OrderExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     ResponseEntity<Map<String, String>> conflict(IllegalStateException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(CatalogUnavailableException.class)
+    ResponseEntity<Map<String, String>> catalogUnavailable(CatalogUnavailableException exception) {
+        log.error("El catálogo no está disponible para actualizar el stock", exception);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", "El catálogo no está disponible para reservar stock"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

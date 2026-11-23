@@ -14,6 +14,8 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -62,7 +64,7 @@ class OrderControllerSecurityTest {
 
     @Test
     void transicionInvalidaDevuelve409() throws Exception {
-        when(orderService.cambiarEstado(1L, "ACEPTADO"))
+        when(orderService.cambiarEstado(eq(1L), eq("ACEPTADO"), any()))
                 .thenThrow(new IllegalStateException("Transición no permitida: DESPACHADO -> ACEPTADO"));
 
         mockMvc.perform(put("/api/orders/1/status")

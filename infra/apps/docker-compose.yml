@@ -77,6 +77,9 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
       SPRING_RABBITMQ_PUBLISHER_CONFIRM_TYPE: correlated
       SPRING_RABBITMQ_PUBLISHER_RETURNS: "true"
+
+      # Catálogo: reserva/liberación de stock
+      SERVICES_CATALOG_URL: http://ms-pedidos-360-catalog:8081
     volumes:
       - ${ORACLE_WALLET_PATH:-../../../../aws/Wallet_pedidos360db}:/opt/pedidos360/wallet:ro,z
     networks:

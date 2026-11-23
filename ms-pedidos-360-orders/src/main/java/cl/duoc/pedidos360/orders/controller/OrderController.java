@@ -47,7 +47,7 @@ public class OrderController {
     @PreAuthorize("hasAnyAuthority('ROLE_CLIENTE', 'ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
     public ResponseEntity<Order> crearPedido(
             @RequestBody Order pedido, @AuthenticationPrincipal Jwt jwt) {
-        Order nuevo = orderService.crearPedido(pedido, cuentaDesde(jwt));
+        Order nuevo = orderService.crearPedido(pedido, cuentaDesde(jwt), jwt.getTokenValue());
         return ResponseEntity.status(HttpStatus.CREATED).body(nuevo);
     }
 
@@ -55,12 +55,13 @@ public class OrderController {
     @PreAuthorize("hasAnyAuthority('ROLE_ADMINISTRADOR', 'ROLE_OPERADOR')")
     public ResponseEntity<Order> cambiarEstado(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal Jwt jwt) {
         String nuevoEstado = body.get("status");
         if (nuevoEstado == null) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(orderService.cambiarEstado(id, nuevoEstado));
+        return ResponseEntity.ok(orderService.cambiarEstado(id, nuevoEstado, jwt.getTokenValue()));
     }
 
     private String cuentaDesde(Jwt jwt) {
