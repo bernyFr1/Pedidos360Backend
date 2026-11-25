@@ -80,6 +80,7 @@ services:
 
       # Catálogo: reserva/liberación de stock
       SERVICES_CATALOG_URL: http://ms-pedidos-360-catalog:8081
+      STOCK_RESERVATION_START: ${STOCK_RESERVATION_START:-2026-11-24T00:00:00}
     volumes:
       - ${ORACLE_WALLET_PATH:-../../../../aws/Wallet_pedidos360db}:/opt/pedidos360/wallet:ro,z
     networks:

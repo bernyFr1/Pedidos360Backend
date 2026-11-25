@@ -56,6 +56,7 @@ class StockServiceTest {
         assertEquals(5, cambio.previousStock());
         assertEquals(3, cambio.newStock());
         assertEquals(-2, cambio.delta());
+        assertEquals(0, new BigDecimal("10.00").compareTo(cambio.unitPrice()));
 
         verify(eventPublisher).publishEvent(any(StockChangedEvent.class));
     }

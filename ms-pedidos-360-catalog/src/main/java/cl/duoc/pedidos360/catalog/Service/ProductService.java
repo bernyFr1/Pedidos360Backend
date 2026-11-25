@@ -99,7 +99,8 @@ public class ProductService {
                         Math.abs(nuevo - anterior),
                         anterior,
                         nuevo,
-                        nuevo - anterior)),
+                        nuevo - anterior,
+                        producto.getPrice())),
                 Instant.now()));
     }
 

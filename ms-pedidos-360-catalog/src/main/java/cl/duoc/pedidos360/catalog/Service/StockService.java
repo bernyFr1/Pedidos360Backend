@@ -58,7 +58,8 @@ public class StockService {
             int nuevo = anterior - cantidad;
             producto.setStock(nuevo);
             productRepository.save(producto);
-            cambios.add(new StockChangeItem(producto.getId(), cantidad, anterior, nuevo, -cantidad));
+            cambios.add(new StockChangeItem(
+                    producto.getId(), cantidad, anterior, nuevo, -cantidad, producto.getPrice()));
         }
 
         publicarEvento(request.orderId(), "RESERVA", cambios);
@@ -80,7 +81,8 @@ public class StockService {
 
             producto.setStock(nuevo);
             productRepository.save(producto);
-            cambios.add(new StockChangeItem(producto.getId(), cantidad, anterior, nuevo, cantidad));
+            cambios.add(new StockChangeItem(
+                    producto.getId(), cantidad, anterior, nuevo, cantidad, producto.getPrice()));
         }
 
         publicarEvento(request.orderId(), "LIBERACION", cambios);

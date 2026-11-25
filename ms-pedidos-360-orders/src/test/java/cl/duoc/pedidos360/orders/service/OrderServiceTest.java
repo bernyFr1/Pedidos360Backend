@@ -2,6 +2,7 @@ package cl.duoc.pedidos360.orders.service;
 
 import cl.duoc.pedidos360.orders.client.CatalogStockClient;
 import cl.duoc.pedidos360.orders.domain.PedidoPolicy;
+import cl.duoc.pedidos360.orders.domain.StockReservationPolicy;
 import cl.duoc.pedidos360.orders.dto.StockChangeItem;
 import cl.duoc.pedidos360.orders.dto.StockReservationResponse;
 import cl.duoc.pedidos360.orders.entity.Order;
@@ -42,6 +43,9 @@ class OrderServiceTest {
 
     @Mock
     private CatalogStockClient catalogStockClient;
+
+    @Mock
+    private StockReservationPolicy stockReservationPolicy;
 
     @Spy
     private PedidoPolicy pedidoPolicy = new PedidoPolicy();
@@ -146,13 +150,14 @@ class OrderServiceTest {
                 .thenReturn(new StockReservationResponse(
                         99L,
                         "RESERVA",
-                        List.of(new StockChangeItem(1L, 2, 5, 3, -2))));
+                        List.of(new StockChangeItem(1L, 2, 5, 3, -2, new BigDecimal("15.00")))));
 
         Order guardado = orderService.crearPedido(pedido, "cliente-1", "token");
 
         assertEquals(99L, guardado.getId());
         assertEquals("CREADO", guardado.getStatus());
-        assertEquals(new BigDecimal("20.00"), guardado.getTotalAmount());
+        assertEquals(new BigDecimal("30.00"), guardado.getTotalAmount());
+        assertEquals(new BigDecimal("15.00"), guardado.getItems().get(0).getUnitPrice());
         verify(catalogStockClient).reservar(eq(99L), anyList(), eq("token"));
         verify(eventPublisher).publishEvent(any(PedidoPersistidoEvent.class));
     }
@@ -186,17 +191,36 @@ class OrderServiceTest {
 
         when(orderRepository.findById(20L)).thenReturn(Optional.of(pedido));
         when(orderRepository.save(pedido)).thenReturn(pedido);
+        when(stockReservationPolicy.debeLiberar(pedido)).thenReturn(true);
         when(catalogStockClient.liberar(eq(20L), anyList(), eq("token")))
                 .thenReturn(new StockReservationResponse(
                         20L,
                         "LIBERACION",
-                        List.of(new StockChangeItem(1L, 2, 3, 5, 2))));
+                        List.of(new StockChangeItem(1L, 2, 3, 5, 2, new BigDecimal("10.00")))));
 
         Order cancelado = orderService.cambiarEstado(20L, "CANCELADO", "token");
 
         assertEquals("CANCELADO", cancelado.getStatus());
         verify(catalogStockClient).liberar(eq(20L), anyList(), eq("token"));
         verify(eventPublisher).publishEvent(new PedidoPersistidoEvent(20L, "cliente-1", "CANCELADO"));
+    }
+
+    @Test
+    void noLiberaStockDeUnPedidoAnteriorAlCorte() {
+        Order pedido = new Order();
+        pedido.setId(21L);
+        pedido.setClientId("cliente-1");
+        pedido.setStatus("ACEPTADO");
+        pedido.setItems(List.of(item(1L, 2, "10.00")));
+
+        when(orderRepository.findById(21L)).thenReturn(Optional.of(pedido));
+        when(orderRepository.save(pedido)).thenReturn(pedido);
+        when(stockReservationPolicy.debeLiberar(pedido)).thenReturn(false);
+
+        Order cancelado = orderService.cambiarEstado(21L, "CANCELADO", "token");
+
+        assertEquals("CANCELADO", cancelado.getStatus());
+        verifyNoInteractions(catalogStockClient);
     }
 
     private OrderItem item(Long productId, int quantity, String unitPrice) {

@@ -2,6 +2,8 @@ package cl.duoc.pedidos360.orders.service;
 
 import cl.duoc.pedidos360.orders.domain.EstadoPedido;
 import cl.duoc.pedidos360.orders.domain.PedidoPolicy;
+import cl.duoc.pedidos360.orders.domain.StockReservationPolicy;
+import cl.duoc.pedidos360.orders.dto.StockChangeItem;
 import cl.duoc.pedidos360.orders.dto.StockReservationResponse;
 import cl.duoc.pedidos360.orders.entity.Order;
 import cl.duoc.pedidos360.orders.entity.OrderItem;
@@ -15,7 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -26,15 +30,18 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final PedidoPolicy pedidoPolicy;
     private final CatalogStockClient catalogStockClient;
+    private final StockReservationPolicy stockReservationPolicy;
 
     public OrderService(OrderRepository orderRepository,
                         ApplicationEventPublisher eventPublisher,
                         PedidoPolicy pedidoPolicy,
-                        CatalogStockClient catalogStockClient) {
+                        CatalogStockClient catalogStockClient,
+                        StockReservationPolicy stockReservationPolicy) {
         this.orderRepository = orderRepository;
         this.eventPublisher = eventPublisher;
         this.pedidoPolicy = pedidoPolicy;
         this.catalogStockClient = catalogStockClient;
+        this.stockReservationPolicy = stockReservationPolicy;
     }
 
     @Transactional(readOnly = true)
@@ -83,33 +90,59 @@ public class OrderService {
         }
 
         nuevoPedido.setStatus(EstadoPedido.CREADO.name());
-        BigDecimal totalCalculado = BigDecimal.ZERO;
+        nuevoPedido.setTotalAmount(BigDecimal.ZERO);
 
         for (OrderItem item : nuevoPedido.getItems()) {
             if (item.getQuantity() == null || item.getQuantity() <= 0) {
                 throw new IllegalArgumentException("La cantidad debe ser mayor a cero");
             }
-            if (item.getUnitPrice() == null || item.getUnitPrice().signum() < 0) {
-                throw new IllegalArgumentException("El precio unitario no puede ser negativo");
-            }
 
-            BigDecimal subtotal = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
-            item.setSubtotal(subtotal);
+            // El precio definitivo lo entrega catalog. El valor del cliente no se usa.
+            item.setUnitPrice(BigDecimal.ZERO);
+            item.setSubtotal(BigDecimal.ZERO);
             item.setOrder(nuevoPedido);
-            totalCalculado = totalCalculado.add(subtotal);
         }
 
-        nuevoPedido.setTotalAmount(totalCalculado);
         Order guardado = orderRepository.saveAndFlush(nuevoPedido);
 
         StockReservationResponse reserva = catalogStockClient.reservar(
                 guardado.getId(), guardado.getItems(), accessToken);
+        aplicarPreciosCatalogo(guardado, reserva);
+        orderRepository.saveAndFlush(guardado);
+
         log.info("Stock reservado orderId={} operation={} items={}",
                 guardado.getId(), reserva.operation(), reserva.items());
 
         eventPublisher.publishEvent(new PedidoPersistidoEvent(
                 guardado.getId(), guardado.getClientId(), guardado.getStatus()));
         return guardado;
+    }
+
+    private void aplicarPreciosCatalogo(Order order, StockReservationResponse reserva) {
+        Map<Long, BigDecimal> precios = new HashMap<>();
+
+        for (StockChangeItem item : reserva.items()) {
+            if (item.unitPrice() != null) {
+                precios.put(item.productId(), item.unitPrice());
+            }
+        }
+
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (OrderItem item : order.getItems()) {
+            BigDecimal precio = precios.get(item.getProductId());
+            if (precio == null) {
+                throw new IllegalStateException(
+                        "El catálogo no devolvió el precio del producto " + item.getProductId());
+            }
+
+            item.setUnitPrice(precio);
+            BigDecimal subtotal = precio.multiply(BigDecimal.valueOf(item.getQuantity()));
+            item.setSubtotal(subtotal);
+            total = total.add(subtotal);
+        }
+
+        order.setTotalAmount(total);
     }
 
     @Transactional
@@ -124,7 +157,9 @@ public class OrderService {
 
         pedidoPolicy.validarTransicion(actual, nuevo);
 
-        if (nuevo == EstadoPedido.CANCELADO && !pedido.getItems().isEmpty()) {
+        if (nuevo == EstadoPedido.CANCELADO
+                && !pedido.getItems().isEmpty()
+                && stockReservationPolicy.debeLiberar(pedido)) {
             StockReservationResponse liberacion = catalogStockClient.liberar(
                     pedido.getId(), pedido.getItems(), accessToken);
             log.info("Stock liberado orderId={} operation={} items={}",
