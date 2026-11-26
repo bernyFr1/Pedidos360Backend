@@ -173,7 +173,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(kafka_consumergroup_lag) by (consumergroup)",
+          "expr": "sum(clamp_min(kafka_consumergroup_lag, 0)) by (consumergroup)",
           "legendFormat": "{{consumergroup}}"
         }
       ],
@@ -209,7 +209,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "kafka_consumergroup_lag",
+          "expr": "kafka_consumergroup_lag >= 0",
           "format": "table",
           "instant": true
         }
