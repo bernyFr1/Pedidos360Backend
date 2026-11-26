@@ -12,7 +12,7 @@
 #   localhost:9092,localhost:9093,localhost:9094
 #
 # La creación automática de tópicos está deshabilitada:
-# los tópicos se crean explícitamente en el siguiente paso.
+# kafka-init crea explícitamente pedidos-eventos e inventario-eventos.
 
 name: pedidos360-kafka
 
@@ -224,6 +224,23 @@ services:
       retries: 15
       start_period: 30s
     restart: unless-stopped
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: pedidos360-kafka-init
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+    networks:
+      - pedidos360-kafka-net
+    volumes:
+      - ./create-topics.sh:/scripts/create-topics.sh:ro,z
+    entrypoint: ["/bin/bash", "/scripts/create-topics.sh"]
+    restart: "no"
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
