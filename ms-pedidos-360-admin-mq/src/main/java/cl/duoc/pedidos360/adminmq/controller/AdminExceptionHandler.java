@@ -1,6 +1,7 @@
 package cl.duoc.pedidos360.adminmq.controller;
 
 import cl.duoc.pedidos360.adminmq.exception.ResourceNotFoundException;
+import cl.duoc.pedidos360.adminmq.kafka.exception.KafkaAdminException;
 import cl.duoc.pedidos360.adminmq.monitoring.exception.RabbitMqManagementException;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.ShutdownSignalException;
@@ -67,6 +68,13 @@ public class AdminExceptionHandler {
     @ExceptionHandler(RabbitMqManagementException.class)
     ResponseEntity<Map<String, String>> managementError(RabbitMqManagementException exception) {
         log.error("Error consultando la API de RabbitMQ Management", exception);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(KafkaAdminException.class)
+    ResponseEntity<Map<String, String>> kafkaAdminError(KafkaAdminException exception) {
+        log.error("Error en la administración de Kafka", exception);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(Map.of("error", exception.getMessage()));
     }

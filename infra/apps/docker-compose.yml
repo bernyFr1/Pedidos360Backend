@@ -182,42 +182,47 @@ services:
       RABBITMQ_MANAGEMENT_URL: http://rabbitmq-1:15672/api
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      # Kafka Admin API
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
     networks:
       - pedidos360-net
       - pedidos360-rabbitmq-net
+      - pedidos360-kafka-net
     restart: unless-stopped
 
-  # 6. Microservicios de Kafka / Observabilidad (Control 3 / EFT)
-  #    Fuera del alcance actual de EP3/EP4. Se habilitan en la siguiente etapa.
-  #
-  # ms-pedidos-360-report:
-  #   build:
-  #     context: ../..
-  #     dockerfile: Dockerfile
-  #     args:
-  #       MODULE: ms-pedidos-360-report
-  #   container_name: ms-pedidos-360-report
-  #   expose:
-  #     - "8084"
-  #   environment:
-  #     SERVER_PORT: 8084
-  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_HOST:-kafka1}:9092
-  #   networks:
-  #     - pedidos360-net
-  #   restart: unless-stopped
-  #
-  # ms-pedidos-360-audit:
-  #   build:
-  #     context: ../..
-  #     dockerfile: Dockerfile
-  #     args:
-  #       MODULE: ms-pedidos-360-audit
-  #   container_name: ms-pedidos-360-audit
-  #   expose:
-  #     - "8085"
-  #   environment:
-  #     SERVER_PORT: 8085
-  #     SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_HOST:-kafka1}:9092
-  #   networks:
-  #     - pedidos360-net
-  #   restart: unless-stopped
+  # 6. Microservicios de Kafka / Observabilidad
+  ms-pedidos-360-report:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-report
+    container_name: ms-pedidos-360-report
+    expose:
+      - "8084"
+    environment:
+      SERVER_PORT: 8084
+      SPRING_PROFILES_ACTIVE: prod
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
+    networks:
+      - pedidos360-net
+      - pedidos360-kafka-net
+    restart: unless-stopped
+
+  ms-pedidos-360-audit:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        MODULE: ms-pedidos-360-audit
+    container_name: ms-pedidos-360-audit
+    expose:
+      - "8085"
+    environment:
+      SERVER_PORT: 8085
+      SPRING_PROFILES_ACTIVE: prod
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
+    networks:
+      - pedidos360-net
+      - pedidos360-kafka-net
+    restart: unless-stopped
