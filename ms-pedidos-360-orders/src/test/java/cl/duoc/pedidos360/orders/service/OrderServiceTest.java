@@ -7,6 +7,8 @@ import cl.duoc.pedidos360.orders.dto.StockChangeItem;
 import cl.duoc.pedidos360.orders.dto.StockReservationResponse;
 import cl.duoc.pedidos360.orders.entity.Order;
 import cl.duoc.pedidos360.orders.entity.OrderItem;
+import cl.duoc.pedidos360.orders.kafka.PedidoEventoFactory;
+import cl.duoc.pedidos360.orders.kafka.PedidoKafkaEvent;
 import cl.duoc.pedidos360.orders.messaging.PedidoPersistidoEvent;
 import cl.duoc.pedidos360.orders.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,9 @@ class OrderServiceTest {
 
     @Spy
     private PedidoPolicy pedidoPolicy = new PedidoPolicy();
+
+    @Spy
+    private PedidoEventoFactory pedidoEventoFactory = new PedidoEventoFactory();
 
     @InjectMocks
     private OrderService orderService;
@@ -103,6 +108,7 @@ class OrderServiceTest {
 
         assertEquals("ACEPTADO", actualizado.getStatus());
         verify(eventPublisher).publishEvent(new PedidoPersistidoEvent(10L, "cliente-1", "ACEPTADO"));
+        verify(eventPublisher).publishEvent(any(PedidoKafkaEvent.class));
         verifyNoInteractions(catalogStockClient);
     }
 
@@ -160,6 +166,7 @@ class OrderServiceTest {
         assertEquals(new BigDecimal("15.00"), guardado.getItems().get(0).getUnitPrice());
         verify(catalogStockClient).reservar(eq(99L), anyList(), eq("token"));
         verify(eventPublisher).publishEvent(any(PedidoPersistidoEvent.class));
+        verify(eventPublisher).publishEvent(any(PedidoKafkaEvent.class));
     }
 
     @Test
@@ -203,6 +210,7 @@ class OrderServiceTest {
         assertEquals("CANCELADO", cancelado.getStatus());
         verify(catalogStockClient).liberar(eq(20L), anyList(), eq("token"));
         verify(eventPublisher).publishEvent(new PedidoPersistidoEvent(20L, "cliente-1", "CANCELADO"));
+        verify(eventPublisher).publishEvent(any(PedidoKafkaEvent.class));
     }
 
     @Test

@@ -3,8 +3,11 @@
 # Requisitos antes de levantar:
 #   1. El clúster RabbitMQ debe estar arriba:
 #        cd infra/rabbitmq && docker compose up -d
-#   2. Debe existir la red externa "pedidos360-rabbitmq-net".
-#   3. Debes tener un .env en esta carpeta (copia .env.example y completa los valores).
+#   2. El clúster Kafka debe estar arriba:
+#        cd infra/kafka && docker compose up -d
+#   3. Deben existir las redes externas "pedidos360-rabbitmq-net" y
+#      "pedidos360-kafka-net".
+#   4. Debes tener un .env en esta carpeta (copia .env.example y completa los valores).
 #
 # Las credenciales de RabbitMQ deben coincidir con infra/rabbitmq/.env.
 # No commitees el archivo .env.
@@ -17,6 +20,9 @@ networks:
     driver: bridge
   pedidos360-rabbitmq-net:
     name: pedidos360-rabbitmq-net
+    external: true
+  pedidos360-kafka-net:
+    name: pedidos360-kafka-net
     external: true
 
 services:
@@ -81,11 +87,16 @@ services:
       # Catálogo: reserva/liberación de stock
       SERVICES_CATALOG_URL: http://ms-pedidos-360-catalog:8081
       STOCK_RESERVATION_START: ${STOCK_RESERVATION_START:-2026-11-24T00:00:00}
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
+      KAFKA_TOPIC_PEDIDOS: pedidos-eventos
     volumes:
       - ${ORACLE_WALLET_PATH:-../../../../aws/Wallet_pedidos360db}:/opt/pedidos360/wallet:ro,z
     networks:
       - pedidos360-net
       - pedidos360-rabbitmq-net
+      - pedidos360-kafka-net
     restart: unless-stopped
 
   # 3. Microservicio de Dominio: Catálogo y Productos
@@ -112,10 +123,15 @@ services:
       # JWT (Microsoft Entra ID)
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://login.microsoftonline.com/${TENANT_ID}/v2.0
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES_0: ${CLIENT_ID_API}
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:29092,kafka-2:29092,kafka-3:29092
+      KAFKA_TOPIC_INVENTARIO: inventario-eventos
     volumes:
       - ${ORACLE_WALLET_PATH:-../../../../aws/Wallet_pedidos360db}:/opt/pedidos360/wallet:ro,z
     networks:
       - pedidos360-net
+      - pedidos360-kafka-net
     restart: unless-stopped
 
   # 4. Microservicio Consumidor de Notificaciones, Cocina y Documentos (RabbitMQ)

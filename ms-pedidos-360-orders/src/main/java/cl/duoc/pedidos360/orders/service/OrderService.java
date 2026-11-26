@@ -7,6 +7,8 @@ import cl.duoc.pedidos360.orders.dto.StockChangeItem;
 import cl.duoc.pedidos360.orders.dto.StockReservationResponse;
 import cl.duoc.pedidos360.orders.entity.Order;
 import cl.duoc.pedidos360.orders.entity.OrderItem;
+import cl.duoc.pedidos360.orders.kafka.PedidoEventoFactory;
+import cl.duoc.pedidos360.orders.kafka.PedidoKafkaEvent;
 import cl.duoc.pedidos360.orders.messaging.PedidoPersistidoEvent;
 import cl.duoc.pedidos360.orders.repository.OrderRepository;
 import cl.duoc.pedidos360.orders.client.CatalogStockClient;
@@ -31,17 +33,20 @@ public class OrderService {
     private final PedidoPolicy pedidoPolicy;
     private final CatalogStockClient catalogStockClient;
     private final StockReservationPolicy stockReservationPolicy;
+    private final PedidoEventoFactory pedidoEventoFactory;
 
     public OrderService(OrderRepository orderRepository,
                         ApplicationEventPublisher eventPublisher,
                         PedidoPolicy pedidoPolicy,
                         CatalogStockClient catalogStockClient,
-                        StockReservationPolicy stockReservationPolicy) {
+                        StockReservationPolicy stockReservationPolicy,
+                        PedidoEventoFactory pedidoEventoFactory) {
         this.orderRepository = orderRepository;
         this.eventPublisher = eventPublisher;
         this.pedidoPolicy = pedidoPolicy;
         this.catalogStockClient = catalogStockClient;
         this.stockReservationPolicy = stockReservationPolicy;
+        this.pedidoEventoFactory = pedidoEventoFactory;
     }
 
     @Transactional(readOnly = true)
@@ -115,6 +120,8 @@ public class OrderService {
 
         eventPublisher.publishEvent(new PedidoPersistidoEvent(
                 guardado.getId(), guardado.getClientId(), guardado.getStatus()));
+        eventPublisher.publishEvent(new PedidoKafkaEvent(
+                pedidoEventoFactory.creado(guardado, null)));
         return guardado;
     }
 
@@ -170,6 +177,8 @@ public class OrderService {
         Order guardado = orderRepository.save(pedido);
         eventPublisher.publishEvent(new PedidoPersistidoEvent(
                 guardado.getId(), guardado.getClientId(), guardado.getStatus()));
+        eventPublisher.publishEvent(new PedidoKafkaEvent(
+                pedidoEventoFactory.estadoCambiado(guardado, null)));
         return guardado;
     }
 }
