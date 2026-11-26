@@ -42,7 +42,18 @@ crear_topico inventario-eventos \
   --config min.insync.replicas=2 \
   --config min.cleanable.dirty.ratio=0.1
 
+# Dead Letter Topics: reciben eventos inválidos o agotados por reintentos.
+crear_topico pedidos-eventos-dlt \
+  --config cleanup.policy=delete \
+  --config retention.ms=604800000 \
+  --config min.insync.replicas=2
+
+crear_topico inventario-eventos-dlt \
+  --config cleanup.policy=delete \
+  --config retention.ms=604800000 \
+  --config min.insync.replicas=2
+
 echo "Tópicos configurados:"
-for topico in pedidos-eventos inventario-eventos; do
+for topico in pedidos-eventos inventario-eventos pedidos-eventos-dlt inventario-eventos-dlt; do
   kafka-topics --bootstrap-server "${BOOTSTRAP}" --describe --topic "${topico}"
 done
