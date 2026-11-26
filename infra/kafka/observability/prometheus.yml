@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: kafka-exporter
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+
+  - job_name: pedidos360-orders
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ms-pedidos-360-orders:8082']
+        labels:
+          application: ms-pedidos-360-orders
+
+  - job_name: pedidos360-catalog
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ms-pedidos-360-catalog:8081']
+        labels:
+          application: ms-pedidos-360-catalog
+
+  - job_name: pedidos360-report
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ms-pedidos-360-report:8084']
+        labels:
+          application: ms-pedidos-360-report
+
+  - job_name: pedidos360-audit
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ms-pedidos-360-audit:8085']
+        labels:
+          application: ms-pedidos-360-audit
+
+  - job_name: pedidos360-admin-mq
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['ms-pedidos-360-admin-mq:8086']
+        labels:
+          application: ms-pedidos-360-admin-mq
